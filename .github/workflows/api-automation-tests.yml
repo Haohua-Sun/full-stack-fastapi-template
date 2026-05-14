@@ -1,0 +1,164 @@
+name: API Automation Tests
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+
+permissions:
+  contents: read
+
+jobs:
+  api-automation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    env:
+      APP_DIR: full-stack-fastapi-template
+      TEST_DIR: fastapi-pytest-api-tests
+      COMPOSE_PROJECT_NAME: app-api-automation
+      BASE_URL: http://localhost:8000
+      ADMIN_EMAIL: admin@example.com
+      ADMIN_PASSWORD: ci-password
+      API_TEST_DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/app
+      API_TEST_TIMEOUT: "20"
+
+    steps:
+      - name: Checkout FastAPI application
+        uses: actions/checkout@v6
+        with:
+          path: ${{ env.APP_DIR }}
+
+      - name: Checkout API test suite
+        uses: actions/checkout@v6
+        with:
+          repository: Haohua-Sun/fastapi-pytest-api-tests
+          ref: main
+          path: ${{ env.TEST_DIR }}
+
+      - name: Create application environment file
+        working-directory: ${{ env.APP_DIR }}
+        run: |
+          cat > .env <<'EOF'
+          PROJECT_NAME=FastAPI App CI
+          STACK_NAME=fastapi-app-ci
+          DOMAIN=localhost
+          FRONTEND_HOST=http://localhost:5173
+          ENVIRONMENT=local
+          BACKEND_CORS_ORIGINS=http://localhost:5173
+          SECRET_KEY=ci-secret-key-for-api-automation-tests
+          FIRST_SUPERUSER=admin@example.com
+          FIRST_SUPERUSER_PASSWORD=ci-password
+          POSTGRES_SERVER=db
+          POSTGRES_PORT=5432
+          POSTGRES_DB=app
+          POSTGRES_USER=postgres
+          POSTGRES_PASSWORD=postgres
+          DOCKER_IMAGE_BACKEND=fastapi-app-ci-backend
+          DOCKER_IMAGE_FRONTEND=fastapi-app-ci-frontend
+          SMTP_HOST=
+          SMTP_USER=
+          SMTP_PASSWORD=
+          EMAILS_FROM_EMAIL=noreply@example.com
+          SENTRY_DSN=
+          EOF
+
+      - name: Create Docker Compose CI override
+        working-directory: ${{ env.APP_DIR }}
+        run: |
+          cat > compose.api-tests.yml <<'EOF'
+          services:
+            db:
+              ports:
+                - "5432:5432"
+
+            backend:
+              ports:
+                - "8000:8000"
+
+          networks:
+            traefik-public:
+              external: false
+          EOF
+
+      - name: Build and start FastAPI backend
+        working-directory: ${{ env.APP_DIR }}
+        run: |
+          docker compose -p "$COMPOSE_PROJECT_NAME" -f compose.yml -f compose.api-tests.yml down -v --remove-orphans
+          docker compose -p "$COMPOSE_PROJECT_NAME" -f compose.yml -f compose.api-tests.yml up -d --wait backend
+          curl -fsS "$BASE_URL/api/v1/utils/health-check/"
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: ${{ env.TEST_DIR }}/requirements.txt
+
+      - name: Install API test dependencies
+        working-directory: ${{ env.TEST_DIR }}
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+
+      - name: Run API test lint
+        working-directory: ${{ env.TEST_DIR }}
+        run: python -m ruff check tests utils
+
+      - name: Run API automation tests
+        working-directory: ${{ env.TEST_DIR }}
+        run: python -m pytest -v --junitxml=pytest-results.xml
+
+      - name: Show Docker logs on failure
+        if: failure()
+        working-directory: ${{ env.APP_DIR }}
+        run: docker compose -p "$COMPOSE_PROJECT_NAME" -f compose.yml -f compose.api-tests.yml logs db prestart backend
+
+      - name: Install Allure CLI
+        if: always()
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y default-jre
+          npm install -g allure-commandline
+
+      - name: Generate Allure HTML report
+        if: always()
+        working-directory: ${{ env.TEST_DIR }}
+        run: |
+          if [ -d allure-results ] && [ "$(find allure-results -type f | wc -l)" -gt 0 ]; then
+            allure generate allure-results -o allure-report --clean
+          else
+            mkdir -p allure-report
+            printf '%s\n' '<!doctype html><title>Allure report</title><p>No Allure results were generated.</p>' > allure-report/index.html
+          fi
+
+      - name: Upload pytest results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: pytest-results
+          path: ${{ env.TEST_DIR }}/pytest-results.xml
+          if-no-files-found: ignore
+
+      - name: Upload Allure raw results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: allure-results
+          path: ${{ env.TEST_DIR }}/allure-results
+          if-no-files-found: ignore
+
+      - name: Upload Allure HTML report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: allure-report
+          path: ${{ env.TEST_DIR }}/allure-report
+          if-no-files-found: error
+
+      - name: Stop FastAPI application
+        if: always()
+        working-directory: ${{ env.APP_DIR }}
+        run: docker compose -p "$COMPOSE_PROJECT_NAME" -f compose.yml -f compose.api-tests.yml down -v --remove-orphans
