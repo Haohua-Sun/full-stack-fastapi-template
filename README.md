@@ -6,11 +6,7 @@
 
 本仓库 fork 自 [`fastapi/full-stack-fastapi-template`](https://github.com/fastapi/full-stack-fastapi-template)，在我的接口自动化测试项目中作为被测应用使用。
 
-对应测试仓库：
-
-```text
-https://github.com/Haohua-Sun/fastapi-pytest-api-tests
-```
+对应测试仓库：[fastapi-pytest-api-tests](https://github.com/Haohua-Sun/fastapi-pytest-api-tests)
 
 ## 仓库关系
 
@@ -21,11 +17,7 @@ https://github.com/Haohua-Sun/fastapi-pytest-api-tests
 
 ## 原项目参考
 
-本仓库保留原 FastAPI 全栈模板的主要结构。框架说明、本地开发、部署和前后端细节请参考原仓库：
-
-```text
-https://github.com/fastapi/full-stack-fastapi-template
-```
+本仓库保留原 FastAPI 全栈模板的主要结构。框架说明、本地开发、部署和前后端细节请参考原仓库：[fastapi/full-stack-fastapi-template](https://github.com/fastapi/full-stack-fastapi-template)。
 
 ## License
 

@@ -6,11 +6,7 @@
 
 This repository is forked from [`fastapi/full-stack-fastapi-template`](https://github.com/fastapi/full-stack-fastapi-template). In my API automation project, it is used as the application under test.
 
-Related test repository:
-
-```text
-https://github.com/Haohua-Sun/fastapi-pytest-api-tests
-```
+Related test repository: [fastapi-pytest-api-tests](https://github.com/Haohua-Sun/fastapi-pytest-api-tests)
 
 ## Repository Relationship
 
@@ -21,11 +17,7 @@ When the test repository changes, its CI checks out and starts this application 
 
 ## Original Project
 
-This fork keeps the main structure of the original FastAPI full-stack template. For framework details, local development, deployment, backend, and frontend documentation, refer to the upstream repository:
-
-```text
-https://github.com/fastapi/full-stack-fastapi-template
-```
+This fork keeps the main structure of the original FastAPI full-stack template. For framework details, local development, deployment, backend, and frontend documentation, refer to the upstream repository: [fastapi/full-stack-fastapi-template](https://github.com/fastapi/full-stack-fastapi-template).
 
 ## License
 
